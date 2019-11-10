@@ -107,6 +107,12 @@ spec:
 EOF
 ----
 
+* Access
+
+----
+kubectl get po
+kubectl port-forward pgadmin4-deployment-842f3fb9f7-bclxs 8080:80
+----
 
 
 
@@ -114,4 +120,3 @@ EOF
 
 
 
- 
