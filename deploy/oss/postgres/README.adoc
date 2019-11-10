@@ -1,0 +1,117 @@
+= Deploy postgres
+
+== Reference
+
+* https://github.com/zalando/postgres-operator[zalando/postgres-operator: Postgres operator creates and manages PostgreSQL clusters running in Kubernetes]
+
+== Conditions
+
+* `kubectl version`
+** Client Version: version.Info{Major:"1", Minor:"14", GitVersion:"v1.14.6", GitCommit:"96fac5cd13a5dc064f7d9f4f23030a6aeface6cc", GitTreeState:"clean", BuildDate:"2019-08-19T11:13:49Z", GoVersion:"go1.12.9", Compiler:"gc", Platform:"darwin/amd64"}
+** Server Version: version.Info{Major:"1", Minor:"13+", GitVersion:"v1.13.10-eks-5ac0f1", GitCommit:"5ac0f1d9ab2c254ea2b0ce3534fd72932094c6e1", GitTreeState:"clean", BuildDate:"2019-08-20T22:39:46Z", GoVersion:"go1.11.13", Compiler:"gc", Platform:"linux/amd64"}
+
+== Deploy
+
+=== 1. Operator
+
+* https://github.com/zalando/postgres-operator/blob/master/docs/quickstart.md#manual-deployment-setup[Manual deployment setup]
+
+[source, shell]
+----
+# First, clone the repository and change to the directory
+git clone https://github.com/zalando/postgres-operator.git
+cd postgres-operator
+
+# apply the manifests in the following order
+kubectl create -f manifests/configmap.yaml  # configuration
+kubectl create -f manifests/operator-service-account-rbac.yaml  # identity and permissions
+kubectl create -f manifests/postgres-operator.yaml  # deployment
+----
+
+* I realized later that...
+
+[source, shell]
+----
+kubectl apply -k github.com/zalando/postgres-operator/manifests
+----
+
+=== 2. Cluster
+
+* https://github.com/zalando/postgres-operator/blob/master/docs/quickstart.md#create-a-postgres-cluster[Create a Postgres cluster]
+
+[source, shell]
+----
+# if you've created the operator using yaml manifests
+kubectl get pod -l name=postgres-operator
+
+# if you've created the operator using helm chart
+# kubectl get pod -l app.kubernetes.io/name=postgres-operator
+
+# create a Postgres cluster
+kubectl create -f manifests/minimal-postgres-manifest.yaml
+----
+
+* Wait for acid-minimal-cluster-0 and acid-minimal-cluster-1. (About 3 minites ?)
+
+[source, shell]
+----
+kubectl get po -w
+----
+
+* Get password for `postgres` user.
+
+[source, shell]
+----
+kubectl get secret postgres.acid-minimal-cluster.credentials -o 'jsonpath={.data.password}' | base64 -D
+----
+
+=== 3. pgAdmin
+
+* Edit and Execute.
+
+[source, shell]
+----
+kubectl apply -f - -o yaml << 'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgadmin4-configmaps
+data:
+  PGADMIN_DEFAULT_PASSWORD: password
+  PGADMIN_DEFAULT_EMAIL: myname@example.com
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin4-deployment
+  labels:
+    app: pgadmin4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin4
+  template:
+    metadata:
+      labels:
+        app: pgadmin4
+    spec:
+      containers:
+        - name: pgadmin4
+          image: dpage/pgadmin4
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: pgadmin4-configmaps
+EOF
+----
+
+
+
+
+
+
+
+
+ 
